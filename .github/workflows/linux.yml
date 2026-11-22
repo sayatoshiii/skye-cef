@@ -1,0 +1,251 @@
+name: Linux
+
+on:
+  workflow_dispatch:
+    inputs:
+      cef_branch:
+        description: CEF branch number
+        required: true
+        default: "8037"
+        type: string
+      cef_checkout:
+        description: CEF commit on that branch
+        required: true
+        default: 14c5a089e8452874cb1a556dc3fde26ed2d87723
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  stage-1:
+    name: Linux x64 (Stage 1/8)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "1"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  stage-2:
+    name: Linux x64 (Stage 2/8)
+    needs: [stage-1]
+    if: >-
+      !failure() && !cancelled() &&
+      needs.stage-1.outputs.completed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "2"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  stage-3:
+    name: Linux x64 (Stage 3/8)
+    needs: [stage-1, stage-2]
+    if: >-
+      !failure() && !cancelled() &&
+      needs.stage-1.outputs.completed != 'true' &&
+      needs.stage-2.outputs.completed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "3"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  stage-4:
+    name: Linux x64 (Stage 4/8)
+    needs: [stage-1, stage-2, stage-3]
+    if: >-
+      !failure() && !cancelled() &&
+      needs.stage-1.outputs.completed != 'true' &&
+      needs.stage-2.outputs.completed != 'true' &&
+      needs.stage-3.outputs.completed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "4"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  stage-5:
+    name: Linux x64 (Stage 5/8)
+    needs: [stage-1, stage-2, stage-3, stage-4]
+    if: >-
+      !failure() && !cancelled() &&
+      needs.stage-1.outputs.completed != 'true' &&
+      needs.stage-2.outputs.completed != 'true' &&
+      needs.stage-3.outputs.completed != 'true' &&
+      needs.stage-4.outputs.completed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "5"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  stage-6:
+    name: Linux x64 (Stage 6/8)
+    needs: [stage-1, stage-2, stage-3, stage-4, stage-5]
+    if: >-
+      !failure() && !cancelled() &&
+      needs.stage-1.outputs.completed != 'true' &&
+      needs.stage-2.outputs.completed != 'true' &&
+      needs.stage-3.outputs.completed != 'true' &&
+      needs.stage-4.outputs.completed != 'true' &&
+      needs.stage-5.outputs.completed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "6"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  stage-7:
+    name: Linux x64 (Stage 7/8)
+    needs: [stage-1, stage-2, stage-3, stage-4, stage-5, stage-6]
+    if: >-
+      !failure() && !cancelled() &&
+      needs.stage-1.outputs.completed != 'true' &&
+      needs.stage-2.outputs.completed != 'true' &&
+      needs.stage-3.outputs.completed != 'true' &&
+      needs.stage-4.outputs.completed != 'true' &&
+      needs.stage-5.outputs.completed != 'true' &&
+      needs.stage-6.outputs.completed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "7"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  stage-8:
+    name: Linux x64 (Stage 8/8)
+    needs: [stage-1, stage-2, stage-3, stage-4, stage-5, stage-6, stage-7]
+    if: >-
+      !failure() && !cancelled() &&
+      needs.stage-1.outputs.completed != 'true' &&
+      needs.stage-2.outputs.completed != 'true' &&
+      needs.stage-3.outputs.completed != 'true' &&
+      needs.stage-4.outputs.completed != 'true' &&
+      needs.stage-5.outputs.completed != 'true' &&
+      needs.stage-6.outputs.completed != 'true' &&
+      needs.stage-7.outputs.completed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      completed: ${{ steps.stage.outputs.completed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: stage
+        uses: ./.github/actions/cef-stage
+        with:
+          platform: linux
+          stage: "8"
+          cef_branch: ${{ inputs.cef_branch }}
+          cef_checkout: ${{ inputs.cef_checkout }}
+
+  publish:
+    name: Publish Linux x64
+    needs: [stage-1, stage-2, stage-3, stage-4, stage-5, stage-6, stage-7, stage-8]
+    if: "!failure() && !cancelled()"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: cef-release-${{ inputs.cef_checkout }}
+      cancel-in-progress: false
+    steps:
+      - name: Verify compilation completed
+        run: |
+          if [[ "${{ needs.stage-1.outputs.completed }}" != "true" &&
+                "${{ needs.stage-2.outputs.completed }}" != "true" &&
+                "${{ needs.stage-3.outputs.completed }}" != "true" &&
+                "${{ needs.stage-4.outputs.completed }}" != "true" &&
+                "${{ needs.stage-5.outputs.completed }}" != "true" &&
+                "${{ needs.stage-6.outputs.completed }}" != "true" &&
+                "${{ needs.stage-7.outputs.completed }}" != "true" &&
+                "${{ needs.stage-8.outputs.completed }}" != "true" ]]; then
+            echo "ERROR: Linux x64 compilation did not complete." >&2
+            exit 1
+          fi
+
+      - name: Download Linux distribution archive
+        uses: actions/download-artifact@v8
+        with:
+          name: cef-dist-linux
+          path: ${{ runner.temp }}/dist
+
+      - name: Publish Linux archive to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CEF_CHECKOUT: ${{ inputs.cef_checkout }}
+        run: |
+          set -eux
+          dist="${RUNNER_TEMP}/dist"
+          tarball=$(echo "$dist"/cef_binary_*_linux64_minimal.tar.bz2)
+          test -f "$tarball"
+          test -f "$tarball.sha256"
+          base=$(basename "$tarball" .tar.bz2)
+          version=${base#cef_binary_}
+          version=${version%_linux64_minimal}
+          notes=$(printf 'CEF %s, built with proprietary_codecs and ffmpeg_branding=Chrome from %s.\n\nLinux x64 with H.264, AAC, and HEVC.' "$version" "$CEF_CHECKOUT")
+          if gh release view "$version" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "$version" --repo "${GITHUB_REPOSITORY}" --clobber \
+              "$tarball" "$tarball.sha256"
+          else
+            gh release create "$version" --repo "${GITHUB_REPOSITORY}" \
+              --title "CEF ${version}" \
+              --notes "$notes" \
+              "$tarball" "$tarball.sha256"
+          fi

@@ -1,0 +1,121 @@
+name: CEF Compile Stage
+description: Run one time-boxed CEF compilation stage and hand off build state or release artifacts
+
+inputs:
+  platform:
+    description: Target platform (linux)
+    required: true
+  stage:
+    description: Current 1-based stage index
+    required: true
+  cef_branch:
+    description: CEF branch number
+    required: true
+  cef_checkout:
+    description: CEF commit hash
+    required: true
+  compile_minutes:
+    description: Maximum compilation minutes for this stage before checkpointing
+    required: false
+    default: "285"
+
+outputs:
+  completed:
+    description: "'true' if compilation and minimal distribution completed, 'false' if checkpointed"
+    value: ${{ steps.compile.outputs.completed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Locate latest build checkpoint
+      if: inputs.stage != '1'
+      id: find-checkpoint
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PLATFORM: ${{ inputs.platform }}
+        CURRENT_STAGE: ${{ inputs.stage }}
+      run: |
+        set -euo pipefail
+        artifacts_json=""
+        for attempt in 1 2 3; do
+          if artifacts_json=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" --paginate --slurp); then
+            break
+          fi
+          if [[ "$attempt" -eq 3 ]]; then
+            echo "ERROR: Failed to list run artifacts after 3 attempts." >&2
+            exit 1
+          fi
+          sleep $((attempt * 5))
+        done
+        latest=$(jq -r \
+          --arg platform "$PLATFORM" \
+          --argjson current "$CURRENT_STAGE" \
+          '[.[].artifacts[]
+            | select(.expired == false)
+            | select(.name | test("^cef-checkpoint-" + $platform + "-[0-9]+$"))
+            | . + {stage_num: (.name | sub("^cef-checkpoint-" + $platform + "-"; "") | tonumber)}
+            | select(.stage_num < $current)
+           ] | sort_by(.stage_num) | last | .name // ""' <<< "$artifacts_json")
+        echo "Latest checkpoint before stage ${CURRENT_STAGE}: ${latest:-<none>}"
+        echo "artifact_name=${latest}" >> "$GITHUB_OUTPUT"
+
+    - name: Download previous build checkpoint
+      if: inputs.stage != '1' && steps.find-checkpoint.outputs.artifact_name != ''
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ steps.find-checkpoint.outputs.artifact_name }}
+        path: ${{ runner.temp }}/cef-checkpoint-in
+
+    - name: Compile CEF stage ${{ inputs.stage }}
+      id: compile
+      shell: bash
+      env:
+        CEF_PLATFORM: ${{ inputs.platform }}
+        CEF_BRANCH: ${{ inputs.cef_branch }}
+        CEF_CHECKOUT: ${{ inputs.cef_checkout }}
+        COMPILE_MINUTES: ${{ inputs.compile_minutes }}
+        CHECKPOINT_IN: ${{ (inputs.stage != '1' && steps.find-checkpoint.outputs.artifact_name != '') && format('{0}/cef-checkpoint-in/cef-out.tar.zst', runner.temp) || '' }}
+        CHECKPOINT_OUT: ${{ runner.temp }}/cef-checkpoint-out/cef-out.tar.zst
+        DIST_OUT: ${{ runner.temp }}/cef-dist-out
+      run: bash "$GITHUB_WORKSPACE/scripts/ci-build-stage.sh"
+
+    - name: Upload build checkpoint for next stage
+      if: steps.compile.outputs.completed == 'false'
+      uses: actions/upload-artifact@v7
+      with:
+        name: cef-checkpoint-${{ inputs.platform }}-${{ inputs.stage }}
+        path: ${{ runner.temp }}/cef-checkpoint-out/cef-out.tar.zst
+        compression-level: 0
+        retention-days: 5
+        if-no-files-found: error
+
+    - name: Upload minimal release distribution
+      if: steps.compile.outputs.completed == 'true'
+      uses: actions/upload-artifact@v7
+      with:
+        name: cef-dist-${{ inputs.platform }}
+        path: ${{ runner.temp }}/cef-dist-out/*
+        compression-level: 0
+        retention-days: 5
+        if-no-files-found: error
+
+    - name: Delete superseded checkpoint artifacts
+      if: inputs.stage != '1'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PLATFORM: ${{ inputs.platform }}
+        CURRENT_STAGE: ${{ inputs.stage }}
+      run: |
+        artifact_ids=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+          --paginate --slurp \
+          | jq -r --arg platform "$PLATFORM" --argjson current "$CURRENT_STAGE" \
+            '.[].artifacts[]
+             | select(.expired == false)
+             | select(.name | test("^cef-checkpoint-" + $platform + "-[0-9]+$"))
+             | select((.name | sub("^cef-checkpoint-" + $platform + "-"; "") | tonumber) < $current)
+             | .id' || true)
+        for id in $artifact_ids; do
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" || true
+        done
